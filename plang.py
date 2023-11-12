@@ -14,13 +14,19 @@ def read_file_from_shell():
 
 def main():
   file_content = read_file_from_shell()
+
+  #lexing
   lex = Lexer(file_content)
   token_stream = lex.lex_input_file()
 
+  # parsing
   parser = Parser(token_stream)
   _ast = parser.parse_tokens()
 
-  print(_ast)
+  #codegen
+  ir = _ast.codegen()
+
+  print(ir)
 
 
 

@@ -1,6 +1,11 @@
 from __future__ import annotations
 from typing import Optional, Union, List 
 from lexer import TokenType
+import llvmlite.ir as ir 
+import llvmlite.binding as llvm
+import os
+
+DEBUG = os.getenv("DEBUG")
 
 '''
 i think the way this is gonna work: 
@@ -16,7 +21,8 @@ class Parser:
     def expect(self, tokenType:TokenType) -> None: 
         _tok = self.token_stream[0]
         if _tok.type == tokenType: 
-            print(f"popped {self.token_stream[0].type}")
+            if DEBUG:
+                print(f"popped {self.token_stream[0].type}")
             self.token_stream.pop(0)
         else: 
             print(f"expected token of type {tokenType} got {self.token_stream[0].type}")
@@ -28,7 +34,8 @@ class Parser:
     def accept(self, tokenType:TokenType) -> None:
         _tok = self.token_stream[0] 
         if _tok.type == tokenType: 
-            print(f"popped {self.token_stream[0].type}")
+            if DEBUG:
+                print(f"popped {self.token_stream[0].type}")
             self.token_stream.pop(0)
 
     def parse_function(self) -> None:
@@ -79,10 +86,17 @@ class Parser:
         return _ast
 
 
+# TODO: for all nodes they need a codegen method, this will call into LLVMlite
 # root of program
 class ProgramNode: 
     def __init__(self, function): 
         self.function = function
+
+    # should instantiate the LLVM program
+    def codegen(self): 
+        mod = ir.Module(name = __file__)
+        self.function.codegen(mod)
+        return mod
 
 class FunctionNode: 
     def __init__(self, fn_type, identifier, statements, args=None):
@@ -91,10 +105,32 @@ class FunctionNode:
         self.statements = statements
         self.args = args 
 
+    def codegen(self, mod): 
+        fn_types = { 
+            "int" : ir.IntType(32),
+            "void": ir.VoidType(),
+        }
+
+        # return type, input types
+        arg_types = [fn_types[j[0].buffer] for j in self.args]
+        fn_t = ir.FunctionType(fn_types[self.type.buffer], arg_types)
+        fn = ir.Function(mod, fn_t, name=self.identifier.buffer)
+        block = fn.append_basic_block(name="entry")
+        builder = ir.IRBuilder(block)
+        for statement in self.statements: 
+            statement.codegen(mod, builder)
+
 class StatementNode: 
     def __init__(self, keyword, value): 
         self.keyword = keyword 
         self.value = value
+
+    def codegen(self, mod, builder): 
+        constant = ir.Constant(ir.IntType(32), self.value.buffer) 
+        builder.ret(constant)
+
+
+
 
 
 '''
