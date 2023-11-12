@@ -13,6 +13,8 @@ class TokenType(Enum):
     TOKENTYPE_OPENPAREN = 8,
     TOKENTYPE_CLOSEPAREN = 9,
     TOKENTYPE_NUMBER = 10,
+    TOKENTYPE_OPERATOR = 11, # operators: +, -, *, /, ','
+    TOKENTYPE_COMMA = 12,
     TOKENTYPE_UNKNOWN = 999
 
 
@@ -27,13 +29,13 @@ class Token:
         return f"<{self.type}> at: [{self.pos}] with buffer: {self.buffer}"
 
 class Lexer:
-    __slots__ = "input_file", "cursor", "token_stream", "valid_types", "valid_keywords"
     def __init__(self, input_file: string): 
         self.input_file = input_file
         self.cursor = 0
         self.token_stream = []
         self.valid_types = {'int', 'char', 'double', 'float'}
         self.valid_keywords = {'return'}
+        self.valid_operators = {'+', '-', '*', '/'}
 
     def add_token(self, token): 
         self.token_stream.append(token)
@@ -59,28 +61,38 @@ class Lexer:
                 self.cursor+=1
                 self.add_token(_tok)
 
-            if content[self.cursor] == "(": 
+            elif content[self.cursor] == ",": 
+                _tok = Token(self.cursor, TokenType.TOKENTYPE_COMMA, None)
+                self.cursor+=1
+                self.add_token(_tok)
+
+            elif content[self.cursor] == "(": 
                 _tok =  Token(self.cursor, TokenType.TOKENTYPE_OPENPAREN, None)
                 self.cursor+=1
                 self.add_token(_tok)
 
-            if content[self.cursor] == ")": 
+            elif content[self.cursor] == ")": 
                 _tok = Token(self.cursor, TokenType.TOKENTYPE_CLOSEPAREN, None)
                 self.cursor+=1
                 self.add_token(_tok)
 
-            if content[self.cursor] == "{": 
-                _tok =  Token(self.cursor, TokenType.TOKENTYPE_OPENCURL, None)
+            elif content[self.cursor] == "{": 
+                _tok = Token(self.cursor, TokenType.TOKENTYPE_OPENCURL, None)
                 self.cursor+=1
                 self.add_token(_tok)
 
-            if content[self.cursor] == "}": 
-                _tok =  Token(self.cursor, TokenType.TOKENTYPE_CLOSECURL, None)
+            elif content[self.cursor] == "}": 
+                _tok = Token(self.cursor, TokenType.TOKENTYPE_CLOSECURL, None)
                 self.cursor+=1
+                self.add_token(_tok)
+
+            elif content[self.cursor] in self.valid_operators: 
+                _tok = Token(self.cursor, TokenType.TOKENTYPE_OPERATOR, content[self.cursor]) 
+                self.cursor+=1 
                 self.add_token(_tok)
 
             # identifiers
-            if content[self.cursor].isalpha():
+            elif content[self.cursor].isalpha():
                 s = self.cursor
                 while content[self.cursor].isalnum(): 
                     self.cursor += 1
@@ -94,7 +106,7 @@ class Lexer:
                     _tok =  Token(self.cursor, TokenType.TOKENTYPE_IDENTIFIER, _buf)
                 self.add_token(_tok)
 
-            if content[self.cursor].isdigit():
+            elif content[self.cursor].isdigit():
                 fp = False
                 s = self.cursor
                 while content[self.cursor].isdigit() or content[self.cursor] == '.':
