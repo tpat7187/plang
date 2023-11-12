@@ -1,3 +1,3 @@
-int main(int x , char y) { 
+int main() { 
   return 69;
 }

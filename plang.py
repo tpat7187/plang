@@ -16,9 +16,11 @@ def main():
   file_content = read_file_from_shell()
   lex = Lexer(file_content)
   token_stream = lex.lex_input_file()
-  parser = Parser(token_stream)
-  parser.parse_tokens()
 
+  parser = Parser(token_stream)
+  _ast = parser.parse_tokens()
+
+  print(_ast)
 
 
 
