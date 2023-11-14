@@ -118,7 +118,6 @@ class Parser:
         _ast = self.parse_program()
         return _ast
 
-
 # TODO: for all nodes they need a codegen method, this will call into LLVMlite
 # root of program
 class ProgramNode: 
@@ -194,9 +193,9 @@ class ExpressionNode:
             else: 
                 return ir.Constant(get_llvmtype(self.type), self.token_val)
 
-        # if its an identifier we return the register to where that identifier is stored
+        # if its an identifier then it we load and return the register where its stored
         if self.tok.type == TokenType.IDENTIFIER:
-            return symbol_table[self.tok.buffer]
+            return builder.load(symbol_table[self.tok.buffer])
 
 class BinaryExpressionNode: 
     def __init__(self, RHS, LHS, op): 
@@ -216,7 +215,6 @@ class BinaryExpressionNode:
         lhs = self.LHS.codegen(mod, builder, symbol_table)
 
         out = op_map[self.op.buffer](builder, lhs, rhs)
-
         return out
 
 
