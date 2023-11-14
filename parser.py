@@ -41,23 +41,23 @@ class Parser:
             self.token_stream.pop(0)
 
     def parse_function(self) -> None:
-        fn_type = self.expect(TokenType.TOKENTYPE_TYPE)
-        fn_id = self.expect(TokenType.TOKENTYPE_IDENTIFIER)
-        self.expect(TokenType.TOKENTYPE_OPENPAREN)
+        fn_type = self.expect(TokenType.TYPE)
+        fn_id = self.expect(TokenType.IDENTIFIER)
+        self.expect(TokenType.OPENPAREN)
         args = self.parse_fn_arguments() # parses function arguments
-        self.expect(TokenType.TOKENTYPE_CLOSEPAREN)
-        self.expect(TokenType.TOKENTYPE_OPENCURL)
+        self.expect(TokenType.CLOSEPAREN)
+        self.expect(TokenType.OPENCURL)
         statements = self.parse_block()
-        self.expect(TokenType.TOKENTYPE_CLOSECURL)
+        self.expect(TokenType.CLOSECURL)
         return FunctionNode(fn_type, fn_id, statements, args)
 
     def parse_fn_arguments(self): 
         args = []
-        while self.peek_token_type() != TokenType.TOKENTYPE_CLOSEPAREN:
-            _typ = self.expect(TokenType.TOKENTYPE_TYPE)
-            _id = self.expect(TokenType.TOKENTYPE_IDENTIFIER)
+        while self.peek_token_type() != TokenType.CLOSEPAREN:
+            _typ = self.expect(TokenType.TYPE)
+            _id = self.expect(TokenType.IDENTIFIER)
             args.append((_typ, _id))
-            self.accept(TokenType.TOKENTYPE_COMMA)
+            self.accept(TokenType.COMMA)
         return args
 
     def peek_token_type(self): 
@@ -66,34 +66,34 @@ class Parser:
     # each block ends with a CLOSECURL
     def parse_block(self) -> None: 
         statements = []
-        while self.peek_token_type() != TokenType.TOKENTYPE_CLOSECURL: 
+        while self.peek_token_type() != TokenType.CLOSECURL: 
             statements.append(self.parse_statement())
         return statements
 
     # each statement ends with an EOL
     def parse_statement(self): 
-        if self.peek_token_type() == TokenType.TOKENTYPE_KEYWORD:
-            _kw = self.expect(TokenType.TOKENTYPE_KEYWORD)
+        if self.peek_token_type() == TokenType.KEYWORD:
+            _kw = self.expect(TokenType.KEYWORD)
             expr = self.parse_expression()
-            self.expect(TokenType.TOKENTYPE_EOL)
+            self.expect(TokenType.EOL)
             return ReturnStatementNode(_kw, expr)
 
-        if self.peek_token_type() == TokenType.TOKENTYPE_TYPE:
-            _type = self.expect(TokenType.TOKENTYPE_TYPE)
-            _id = self.expect(TokenType.TOKENTYPE_IDENTIFIER)
-            self.expect(TokenType.TOKENTYPE_ASSIGN)
+        if self.peek_token_type() == TokenType.TYPE:
+            _type = self.expect(TokenType.TYPE)
+            _id = self.expect(TokenType.IDENTIFIER)
+            self.expect(TokenType.ASSIGN)
             expr = self.parse_expression()
-            self.expect(TokenType.TOKENTYPE_EOL)
+            self.expect(TokenType.EOL)
             return AssignStatementNode(_type, _id, expr)
 
     def parse_expression(self): 
-        val = self.expect([TokenType.TOKENTYPE_NUMBER, TokenType.TOKENTYPE_IDENTIFIER])
+        val = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
         return ExpressionNode(val)
 
     # ends program ends with an EOF
     def parse_program(self): 
         fn = self.parse_function()
-        self.expect(TokenType.TOKENTYPE_EOF)
+        self.expect(TokenType.EOF)
         return ProgramNode(fn)
 
     def parse_tokens(self): 
@@ -147,27 +147,32 @@ class AssignStatementNode:
         self.value = _value
 
     # TYPE ID ASSIGN EXPR
+    # alloca the register of name id 
+    # push value into that register
     def codegen(self, mod, builder): 
         llvm_type = get_llvmtype(self.type.buffer)
         expr = self.value.codegen(mod, builder)
 
-
 # should this return something? sometimes we need to reference that node in the statement
 class ExpressionNode: 
-    def __init__(self, value): 
+    def __init__(self, value, _type=None): 
         self.tok = value
         self.token_val = value.buffer
+        self.type = _type 
 
     def codegen(self, mod, builder):
         # stores the number and returns the register
-        if self.tok.type == TokenType.TOKENTYPE_NUMBER:
-            alloca_instr = builder.alloca(ir.IntType(32))
+        if self.tok.type == TokenType.NUMBER:
+            if self.type is None:
+                alloca_instr = builder.alloca(ir.IntType(32))
+            else:
+                alloca_instr = builder.alloca(get_llvmtype(self.type))
             builder.store(ir.Constant(ir.IntType(32), self.token_val), alloca_instr)
             alloca_instr.align = 4
             return alloca_instr
 
         # return the register where the identifier is stored (?) 
-        if self.tok.type == TokenType.TOKENTYPE_IDENTIFIER:
+        if self.tok.type == TokenType.IDENTIFIER:
             print("NOT IMPLEMENTED YET")
 
 

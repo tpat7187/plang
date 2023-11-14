@@ -3,20 +3,20 @@ from typing import Optional, Union, List, Tuple
 from enum import Enum
 
 class TokenType(Enum): 
-    TOKENTYPE_EOF = 1,
-    TOKENTYPE_EOL = 2,
-    TOKENTYPE_OPENCURL = 3,
-    TOKENTYPE_CLOSECURL = 4,
-    TOKENTYPE_TYPE = 5,
-    TOKENTYPE_KEYWORD = 6,
-    TOKENTYPE_IDENTIFIER = 7,
-    TOKENTYPE_OPENPAREN = 8,
-    TOKENTYPE_CLOSEPAREN = 9,
-    TOKENTYPE_NUMBER = 10,
-    TOKENTYPE_OPERATOR = 11, # operators: +, -, *, /, ','
-    TOKENTYPE_COMMA = 12,
-    TOKENTYPE_ASSIGN = 13,
-    TOKENTYPE_UNKNOWN = 999
+    EOF = 1,
+    EOL = 2,
+    OPENCURL = 3,
+    CLOSECURL = 4,
+    TYPE = 5,
+    KEYWORD = 6,
+    IDENTIFIER = 7,
+    OPENPAREN = 8,
+    CLOSEPAREN = 9,
+    NUMBER = 10,
+    OPERATOR = 11, # operators: +, -, *, /, ','
+    COMMA = 12,
+    ASSIGN = 13,
+    UNKNOWN = 999
 
 
 class Token: 
@@ -30,13 +30,13 @@ class Token:
         return f"<{self.type}> at: [{self.pos}] with buffer: {self.buffer}"
 
 symbol_to_tok = { 
-     '{' : TokenType.TOKENTYPE_OPENCURL,
-     '}' : TokenType.TOKENTYPE_CLOSECURL,
-     '(' : TokenType.TOKENTYPE_OPENPAREN,
-     ')' : TokenType.TOKENTYPE_CLOSEPAREN,
-     ';' : TokenType.TOKENTYPE_EOL,
-     '=' : TokenType.TOKENTYPE_ASSIGN,
-     ',' : TokenType.TOKENTYPE_COMMA
+     '{' : TokenType.OPENCURL,
+     '}' : TokenType.CLOSECURL,
+     '(' : TokenType.OPENPAREN,
+     ')' : TokenType.CLOSEPAREN,
+     ';' : TokenType.EOL,
+     '=' : TokenType.ASSIGN,
+     ',' : TokenType.COMMA
  }
 
 class Lexer:
@@ -56,7 +56,7 @@ class Lexer:
         while True: 
             self.generate_next_token()
             # if the most recent token is an EOF we stop generating tokens
-            if self.token_stream[-1].type == TokenType.TOKENTYPE_EOF:
+            if self.token_stream[-1].type == TokenType.EOF:
                 return self.token_stream
         
 
@@ -75,7 +75,7 @@ class Lexer:
                 self.add_token(_tok)
 
             if content[self.cursor] in self.valid_operators: 
-                _tok = Token(self.cursor, TokenType.TOKENTYPE_OPERATOR, content[self.cursor]) 
+                _tok = Token(self.cursor, TokenType.OPERATOR, content[self.cursor]) 
                 self.cursor+=1 
                 self.add_token(_tok)
 
@@ -87,11 +87,11 @@ class Lexer:
                 _buf = content[s:self.cursor]
 
                 if _buf in self.valid_types: 
-                    _tok = Token(self.cursor, TokenType.TOKENTYPE_TYPE, _buf)
+                    _tok = Token(self.cursor, TokenType.TYPE, _buf)
                 elif _buf in self.valid_keywords: 
-                    _tok = Token(self.cursor, TokenType.TOKENTYPE_KEYWORD, _buf)
+                    _tok = Token(self.cursor, TokenType.KEYWORD, _buf)
                 else:
-                    _tok =  Token(self.cursor, TokenType.TOKENTYPE_IDENTIFIER, _buf)
+                    _tok =  Token(self.cursor, TokenType.IDENTIFIER, _buf)
                 self.add_token(_tok)
 
             elif content[self.cursor].isdigit():
@@ -102,13 +102,13 @@ class Lexer:
                     self.cursor += 1
 
                 _buf = int(content[s:self.cursor]) if fp == False else float(content[s:self.cursor])
-                _tok = Token(self.cursor, TokenType.TOKENTYPE_NUMBER, _buf)
+                _tok = Token(self.cursor, TokenType.NUMBER, _buf)
                 self.add_token(_tok)
 
         else: 
-            if self.token_stream[-1].type == TokenType.TOKENTYPE_EOF: return None
+            if self.token_stream[-1].type == TokenType.EOF: return None
             else: 
-                _tok = Token(self.cursor, TokenType.TOKENTYPE_EOF, None)
+                _tok = Token(self.cursor, TokenType.EOF, None)
                 self.add_token(_tok)
 
 
