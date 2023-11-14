@@ -167,7 +167,7 @@ class ExpressionNode:
             return alloca_instr
 
         # return the register where the identifier is stored (?) 
-        if self.tok.tokenType == TOKENTYPE_IDENTIFIER:
+        if self.tok.type == TokenType.TOKENTYPE_IDENTIFIER:
             print("NOT IMPLEMENTED YET")
 
 

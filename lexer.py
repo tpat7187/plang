@@ -29,6 +29,16 @@ class Token:
     def __repr__(self): 
         return f"<{self.type}> at: [{self.pos}] with buffer: {self.buffer}"
 
+symbol_to_tok = { 
+     '{' : TokenType.TOKENTYPE_OPENCURL,
+     '}' : TokenType.TOKENTYPE_CLOSECURL,
+     '(' : TokenType.TOKENTYPE_OPENPAREN,
+     ')' : TokenType.TOKENTYPE_CLOSEPAREN,
+     ';' : TokenType.TOKENTYPE_EOL,
+     '=' : TokenType.TOKENTYPE_ASSIGN,
+     ',' : TokenType.TOKENTYPE_COMMA
+ }
+
 class Lexer:
     def __init__(self, input_file: string): 
         self.input_file = input_file
@@ -54,45 +64,17 @@ class Lexer:
         stream_length, content = len(self.input_file), self.input_file
         if self.cursor < stream_length-1:
 
+
+
             while content[self.cursor].isspace(): 
                 self.cursor+=1
 
-            if content[self.cursor] == ";": 
-                _tok =  Token(self.cursor, TokenType.TOKENTYPE_EOL, None)
+            if content[self.cursor] in list(symbol_to_tok.keys()): 
+                _tok =  Token(self.cursor, symbol_to_tok[content[self.cursor]], None)
                 self.cursor+=1
                 self.add_token(_tok)
 
-            elif content[self.cursor] == ",": 
-                _tok = Token(self.cursor, TokenType.TOKENTYPE_COMMA, None)
-                self.cursor+=1
-                self.add_token(_tok)
-
-            elif content[self.cursor] == "(": 
-                _tok =  Token(self.cursor, TokenType.TOKENTYPE_OPENPAREN, None)
-                self.cursor+=1
-                self.add_token(_tok)
-
-            elif content[self.cursor] == ")": 
-                _tok = Token(self.cursor, TokenType.TOKENTYPE_CLOSEPAREN, None)
-                self.cursor+=1
-                self.add_token(_tok)
-
-            elif content[self.cursor] == "{": 
-                _tok = Token(self.cursor, TokenType.TOKENTYPE_OPENCURL, None)
-                self.cursor+=1
-                self.add_token(_tok)
-
-            elif content[self.cursor] == "}": 
-                _tok = Token(self.cursor, TokenType.TOKENTYPE_CLOSECURL, None)
-                self.cursor+=1
-                self.add_token(_tok)
-
-            elif content[self.cursor] == "=": 
-                _tok = Token(self.cursor, TokenType.TOKENTYPE_ASSIGN, None)
-                self.cursor+=1
-                self.add_token(_tok)
-
-            elif content[self.cursor] in self.valid_operators: 
+            if content[self.cursor] in self.valid_operators: 
                 _tok = Token(self.cursor, TokenType.TOKENTYPE_OPERATOR, content[self.cursor]) 
                 self.cursor+=1 
                 self.add_token(_tok)
