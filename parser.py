@@ -119,6 +119,7 @@ class FunctionNode:
         self.identifier = identifier 
         self.statements = statements
         self.args = args 
+        self.symbol_table = {}
 
     def codegen(self, mod): 
         # return type, input types
@@ -128,7 +129,7 @@ class FunctionNode:
         block = fn.append_basic_block(name = 'entry') # can we not use these
         builder = ir.IRBuilder(block)
         for statement in self.statements: 
-            statement.codegen(mod, builder)
+            statement.codegen(mod, builder, self.symbol_table)
 
 class ReturnStatementNode: 
     def __init__(self, keyword, value): 
@@ -136,46 +137,50 @@ class ReturnStatementNode:
         self.value = value
 
     # when this gets called, it needs to codegen its children
-    def codegen(self, mod, builder): 
-        expr_instr = self.value.codegen(mod, builder)
+    def codegen(self, mod, builder, symbol_table): 
+        expr_instr = self.value.codegen(mod, builder, symbol_table)
         builder.ret(expr_instr)
 
+# TYPE ID ASSIGN EXPR
 class AssignStatementNode:
     def __init__(self, _type, _id, _value):
         self.type = _type
         self.id = _id 
         self.value = _value
 
-    # TYPE ID ASSIGN EXPR
-    # alloca the register of name id 
-    # push value into that register
-    def codegen(self, mod, builder): 
-        llvm_type = get_llvmtype(self.type.buffer)
-        expr = self.value.codegen(mod, builder)
+    def codegen(self, mod, builder, symbol_table): 
+        # if the identifier is not in the symbol table we allocate memory for it
+        if self.id.buffer not in symbol_table: 
+            llvm_type = get_llvmtype(self.type.buffer)
+            alloca_instr = builder.alloca(llvm_type)
+            alloca_instr.align = 4
+            symbol_table[self.id.buffer] = alloca_instr
 
-# should this return something? sometimes we need to reference that node in the statement
+        # evaluate expression
+        expr = self.value.codegen(mod, builder, symbol_table)
+        builder.store(expr, symbol_table[self.id.buffer])
+
 class ExpressionNode: 
     def __init__(self, value, _type=None): 
         self.tok = value
         self.token_val = value.buffer
         self.type = _type 
 
-    def codegen(self, mod, builder):
-        # stores the number and returns the register
+    # expressions can either be int literals or identifiers 
+    # example: 'x', 5
+    def codegen(self, mod, builder, symbol_table):
+        # if its a int literal we return a constant
         if self.tok.type == TokenType.NUMBER:
             if self.type is None:
-                alloca_instr = builder.alloca(ir.IntType(32))
-            else:
-                alloca_instr = builder.alloca(get_llvmtype(self.type))
-            builder.store(ir.Constant(ir.IntType(32), self.token_val), alloca_instr)
-            alloca_instr.align = 4
-            return alloca_instr
+                return ir.Constant(ir.IntType(32), self.token_val)
+            else: 
+                return ir.Constant(get_llvmtype(self.type), self.token_val)
 
-        # return the register where the identifier is stored (?) 
+        # if its an identifier we return the register to where that identifier is stored
         if self.tok.type == TokenType.IDENTIFIER:
-            print("NOT IMPLEMENTED YET")
+            return symbol_table[self.tok.buffer]
 
-
+# contains a map from identifer to register name
 
 '''
 program -> function 
