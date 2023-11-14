@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Union, List 
-from lexer import TokenType
+from lexer import TokenType, OpsType
 from helpers import get_llvmtype
 import llvmlite.ir as ir 
 import llvmlite.binding as llvm
@@ -60,8 +60,8 @@ class Parser:
             self.accept(TokenType.COMMA)
         return args
 
-    def peek_token_type(self): 
-        return self.token_stream[0].type
+    def peek_token_type(self, j=0): 
+        return self.token_stream[j].type
 
     # each block ends with a CLOSECURL
     def parse_block(self) -> None: 
@@ -86,9 +86,27 @@ class Parser:
             self.expect(TokenType.EOL)
             return AssignStatementNode(_type, _id, expr)
 
+    # if its a single value we create an expression node
     def parse_expression(self): 
-        val = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
-        return ExpressionNode(val)
+        if self.peek_token_type(1) == TokenType.OPERATOR:
+            return self.parse_binary_expression()
+        else:
+            val = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
+            return ExpressionNode(val)
+
+    def parse_binary_expression(self): 
+        LHS_expr = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
+        op = self.expect(TokenType.OPERATOR)
+        RHS_expr = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
+
+        RHS_node = ExpressionNode(RHS_expr)
+        LHS_node = ExpressionNode(LHS_expr)
+
+        # TODO: this
+        if self.peek_token_type() == TokenType.OPERATOR:
+            self.parse_binary_expression()
+
+        return BinaryExpressionNode(LHS_node, RHS_node, op)
 
     # ends program ends with an EOF
     def parse_program(self): 
@@ -180,6 +198,28 @@ class ExpressionNode:
         if self.tok.type == TokenType.IDENTIFIER:
             return symbol_table[self.tok.buffer]
 
+class BinaryExpressionNode: 
+    def __init__(self, RHS, LHS, op): 
+        self.RHS = RHS
+        self.LHS = LHS 
+        self.op = op
+
+    def codegen(self, mod, builder, symbol_table):
+        op_map = { 
+        OpsType.ADD : lambda builder, lhs, rhs: builder.add(lhs, rhs),
+        OpsType.SUB : lambda builder, lhs, rhs: builder.sub(lhs, rhs),
+        OpsType.MUL : lambda builder, lhs, rhs: builder.mul(lhs, rhs),
+        OpsType.DIV : lambda builder, lhs, rhs: builder.div(lhs, rhs)
+        }
+
+        rhs = self.RHS.codegen(mod, builder, symbol_table)
+        lhs = self.LHS.codegen(mod, builder, symbol_table)
+
+        out = op_map[self.op.buffer](builder, lhs, rhs)
+
+        return out
+
+
 # contains a map from identifer to register name
 
 '''
@@ -188,5 +228,6 @@ function -> list of statements (block)
 statements -> return statement EOL | assignment EOL | expression EOL
     return statement -> TOKEN_KEYWORD expression
     assign statement -> TYPE IDENTIFIER ASSIGN expression
-expression -> Identifier | Number
+expression -> Identifier | Number | binary expression
+binary_expression -> expression TOKEN_OPERATOR expression
 '''

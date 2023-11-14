@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Union, List, Tuple
-from enum import Enum
+from enum import Enum, auto
 
 class TokenType(Enum): 
     EOF = 1,
@@ -13,11 +13,12 @@ class TokenType(Enum):
     OPENPAREN = 8,
     CLOSEPAREN = 9,
     NUMBER = 10,
-    OPERATOR = 11, # operators: +, -, *, /, ','
+    OPERATOR = 11, # operators: +, -, *, /,
     COMMA = 12,
     ASSIGN = 13,
     UNKNOWN = 999
 
+class OpsType(Enum): ADD = auto(); SUB = auto(); MUL = auto(); DIV = auto();
 
 class Token: 
     __slots__ = "type", "buffer", "pos"
@@ -38,6 +39,15 @@ symbol_to_tok = {
      '=' : TokenType.ASSIGN,
      ',' : TokenType.COMMA
  }
+
+symbol_to_op = { 
+    '+' : OpsType.ADD, 
+    '-' : OpsType.SUB, 
+    '*' : OpsType.MUL, 
+    '/' : OpsType.DIV
+}
+
+
 
 class Lexer:
     def __init__(self, input_file: string): 
@@ -64,9 +74,7 @@ class Lexer:
         stream_length, content = len(self.input_file), self.input_file
         if self.cursor < stream_length-1:
 
-
-
-            while content[self.cursor].isspace(): 
+            while content[self.cursor].isspace() and self.cursor < stream_length-1:
                 self.cursor+=1
 
             if content[self.cursor] in list(symbol_to_tok.keys()): 
@@ -75,7 +83,7 @@ class Lexer:
                 self.add_token(_tok)
 
             if content[self.cursor] in self.valid_operators: 
-                _tok = Token(self.cursor, TokenType.OPERATOR, content[self.cursor]) 
+                _tok = Token(self.cursor, TokenType.OPERATOR, symbol_to_op[content[self.cursor]])
                 self.cursor+=1 
                 self.add_token(_tok)
 
@@ -104,9 +112,9 @@ class Lexer:
                 _buf = int(content[s:self.cursor]) if fp == False else float(content[s:self.cursor])
                 _tok = Token(self.cursor, TokenType.NUMBER, _buf)
                 self.add_token(_tok)
-
         else: 
-            if self.token_stream[-1].type == TokenType.EOF: return None
+            if self.token_stream[-1].type == TokenType.EOF: 
+                return None
             else: 
                 _tok = Token(self.cursor, TokenType.EOF, None)
                 self.add_token(_tok)
