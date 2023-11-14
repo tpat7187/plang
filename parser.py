@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Optional, Union, List 
 from lexer import TokenType
+from helpers import get_llvmtype
 import llvmlite.ir as ir 
 import llvmlite.binding as llvm
 import os
@@ -18,9 +19,10 @@ class Parser:
         self.token_stream = token_stream
         self.cursor = 0 
 
-    def expect(self, tokenType:TokenType) -> None: 
+    def expect(self, tokenType) -> None: 
+        if not isinstance(tokenType, list): tokenType = [tokenType]
         _tok = self.token_stream[0]
-        if _tok.type == tokenType: 
+        if _tok.type in tokenType: 
             if DEBUG:
                 print(f"popped {self.token_stream[0].type}")
             self.token_stream.pop(0)
@@ -70,10 +72,23 @@ class Parser:
 
     # each statement ends with an EOL
     def parse_statement(self): 
-        kw = self.expect(TokenType.TOKENTYPE_KEYWORD)
-        num = self.expect(TokenType.TOKENTYPE_NUMBER)
-        self.expect(TokenType.TOKENTYPE_EOL)
-        return StatementNode(kw, num)
+        if self.peek_token_type() == TokenType.TOKENTYPE_KEYWORD:
+            _kw = self.expect(TokenType.TOKENTYPE_KEYWORD)
+            expr = self.parse_expression()
+            self.expect(TokenType.TOKENTYPE_EOL)
+            return ReturnStatementNode(_kw, expr)
+
+        if self.peek_token_type() == TokenType.TOKENTYPE_TYPE:
+            _type = self.expect(TokenType.TOKENTYPE_TYPE)
+            _id = self.expect(TokenType.TOKENTYPE_IDENTIFIER)
+            self.expect(TokenType.TOKENTYPE_ASSIGN)
+            expr = self.parse_expression()
+            self.expect(TokenType.TOKENTYPE_EOL)
+            return AssignStatementNode(_type, _id, expr)
+
+    def parse_expression(self): 
+        val = self.expect([TokenType.TOKENTYPE_NUMBER, TokenType.TOKENTYPE_IDENTIFIER])
+        return ExpressionNode(val)
 
     # ends program ends with an EOF
     def parse_program(self): 
@@ -106,35 +121,62 @@ class FunctionNode:
         self.args = args 
 
     def codegen(self, mod): 
-        fn_types = { 
-            "int" : ir.IntType(32),
-            "void": ir.VoidType(),
-        }
-
         # return type, input types
-        arg_types = [fn_types[j[0].buffer] for j in self.args]
-        fn_t = ir.FunctionType(fn_types[self.type.buffer], arg_types)
+        arg_types = [get_llvmtype(j[0].buffer) for j in self.args]
+        fn_t = ir.FunctionType(get_llvmtype(self.type.buffer), arg_types)
         fn = ir.Function(mod, fn_t, name=self.identifier.buffer)
-        block = fn.append_basic_block(name="entry")
+        block = fn.append_basic_block(name = 'entry') # can we not use these
         builder = ir.IRBuilder(block)
         for statement in self.statements: 
             statement.codegen(mod, builder)
 
-class StatementNode: 
+class ReturnStatementNode: 
     def __init__(self, keyword, value): 
         self.keyword = keyword 
         self.value = value
 
+    # when this gets called, it needs to codegen its children
     def codegen(self, mod, builder): 
-        constant = ir.Constant(ir.IntType(32), self.value.buffer) 
-        builder.ret(constant)
+        expr_instr = self.value.codegen(mod, builder)
+        builder.ret(expr_instr)
+
+class AssignStatementNode:
+    def __init__(self, _type, _id, _value):
+        self.type = _type
+        self.id = _id 
+        self.value = _value
+
+    # TYPE ID ASSIGN EXPR
+    def codegen(self, mod, builder): 
+        llvm_type = get_llvmtype(self.type.buffer)
+        expr = self.value.codegen(mod, builder)
 
 
+# should this return something? sometimes we need to reference that node in the statement
+class ExpressionNode: 
+    def __init__(self, value): 
+        self.tok = value
+        self.token_val = value.buffer
+
+    def codegen(self, mod, builder):
+        # stores the number and returns the register
+        if self.tok.type == TokenType.TOKENTYPE_NUMBER:
+            alloca_instr = builder.alloca(ir.IntType(32))
+            builder.store(ir.Constant(ir.IntType(32), self.token_val), alloca_instr)
+            alloca_instr.align = 4
+            return alloca_instr
+
+        # return the register where the identifier is stored (?) 
+        if self.tok.tokenType == TOKENTYPE_IDENTIFIER:
+            print("NOT IMPLEMENTED YET")
 
 
 
 '''
 program -> function 
 function -> list of statements (block)
-statements -> return statement
+statements -> return statement EOL | assignment EOL | expression EOL
+    return statement -> TOKEN_KEYWORD expression
+    assign statement -> TYPE IDENTIFIER ASSIGN expression
+expression -> Identifier | Number
 '''

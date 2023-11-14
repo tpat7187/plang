@@ -15,6 +15,7 @@ class TokenType(Enum):
     TOKENTYPE_NUMBER = 10,
     TOKENTYPE_OPERATOR = 11, # operators: +, -, *, /, ','
     TOKENTYPE_COMMA = 12,
+    TOKENTYPE_ASSIGN = 13,
     TOKENTYPE_UNKNOWN = 999
 
 
@@ -83,6 +84,11 @@ class Lexer:
 
             elif content[self.cursor] == "}": 
                 _tok = Token(self.cursor, TokenType.TOKENTYPE_CLOSECURL, None)
+                self.cursor+=1
+                self.add_token(_tok)
+
+            elif content[self.cursor] == "=": 
+                _tok = Token(self.cursor, TokenType.TOKENTYPE_ASSIGN, None)
                 self.cursor+=1
                 self.add_token(_tok)
 
