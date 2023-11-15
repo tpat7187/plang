@@ -27,18 +27,21 @@ class Parser:
                 print(f"popped {self.token_stream[0].type}")
             self.token_stream.pop(0)
         else: 
-            print(f"expected token of type {tokenType} got {self.token_stream[0].type}")
-            exit(1)
+            raise Exception(f"expected token of type {tokenType} got {self.token_stream[0].type}")
 
         return _tok
 
     # doesnt throw an error if the token types do not match, will pop if there is one
-    def accept(self, tokenType:TokenType) -> None:
-        _tok = self.token_stream[0] 
-        if _tok.type == tokenType: 
+    def accept(self, tokenType) -> None: 
+        if not isinstance(tokenType, list): tokenType = [tokenType]
+        _tok = self.token_stream[0]
+        if _tok.type in tokenType: 
             if DEBUG:
                 print(f"popped {self.token_stream[0].type}")
             self.token_stream.pop(0)
+            return _tok
+            
+
 
     def parse_function(self) -> None:
         fn_type = self.expect(TokenType.TYPE)
@@ -97,16 +100,15 @@ class Parser:
     def parse_binary_expression(self): 
         LHS_expr = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
         op = self.expect(TokenType.OPERATOR)
-        RHS_expr = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
 
-        RHS_node = ExpressionNode(RHS_expr)
+        if self.peek_token_type(0) in [TokenType.NUMBER, TokenType.IDENTIFIER] and self.peek_token_type(1) == TokenType.OPERATOR: 
+            RHS_expr = self.parse_binary_expression()
+        else: 
+            RHS_expr = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
+            RHS_expr = ExpressionNode(RHS_expr)
+
         LHS_node = ExpressionNode(LHS_expr)
-
-        # TODO: this
-        if self.peek_token_type() == TokenType.OPERATOR:
-            self.parse_binary_expression()
-
-        return BinaryExpressionNode(LHS_node, RHS_node, op)
+        return BinaryExpressionNode(LHS_node, RHS_expr, op) 
 
     # ends program ends with an EOF
     def parse_program(self): 
@@ -202,10 +204,12 @@ class ExpressionNode:
         if self.tok.type == TokenType.IDENTIFIER:
             return builder.load(symbol_table[self.tok.buffer])
 
+# this calls codegen on expressions (which will return a ir Constant) 
+# or on binaryexpressions which will return a register of where the output of the binaryexpression is
 class BinaryExpressionNode: 
-    def __init__(self, RHS, LHS, op): 
-        self.RHS = RHS
+    def __init__(self, LHS, RHS, op): 
         self.LHS = LHS 
+        self.RHS = RHS
         self.op = op
 
     def codegen(self, mod, builder, symbol_table):
@@ -219,11 +223,9 @@ class BinaryExpressionNode:
         rhs = self.RHS.codegen(mod, builder, symbol_table)
         lhs = self.LHS.codegen(mod, builder, symbol_table)
 
-        out = op_map[self.op.buffer](builder, lhs, rhs)
+        out =  op_map[self.op.buffer](builder, lhs, rhs)
         return out
 
-
-# contains a map from identifer to register name
 
 '''
 program -> function 
