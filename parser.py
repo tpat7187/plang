@@ -66,6 +66,9 @@ class Parser:
     def peek_token_type(self, j=0): 
         return self.token_stream[j].type
 
+    def peek_token(self, j=0): 
+        return self.token_stream[j]
+
     # each block ends with a CLOSECURL
     def parse_block(self) -> None: 
         statements = []
@@ -97,18 +100,29 @@ class Parser:
             val = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
             return ExpressionNode(val)
 
-    def parse_binary_expression(self): 
+    # will either return an ExpressionNode or a BinaryExpressionNode
+    # will return ExpressioNode if it tries to parse something of lower precedence (which means there is a recursive call)
+    def parse_binary_expression(self, prec=0):
+        precedence = {
+            OpsType.ADD: 1,
+            OpsType.SUB: 1,
+            OpsType.MUL: 2,
+            OpsType.DIV: 2,
+        }
+
         LHS_expr = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
-        op = self.expect(TokenType.OPERATOR)
-
-        if self.peek_token_type(0) in [TokenType.NUMBER, TokenType.IDENTIFIER] and self.peek_token_type(1) == TokenType.OPERATOR: 
-            RHS_expr = self.parse_binary_expression()
-        else: 
-            RHS_expr = self.expect([TokenType.NUMBER, TokenType.IDENTIFIER])
-            RHS_expr = ExpressionNode(RHS_expr)
-
         LHS_node = ExpressionNode(LHS_expr)
-        return BinaryExpressionNode(LHS_node, RHS_expr, op) 
+
+        while True:
+            op = self.peek_token(0)
+            if op.buffer not in precedence or precedence[op.buffer] <= prec:
+                break
+
+            self.expect(TokenType.OPERATOR)  
+            RHS_node = self.parse_binary_expression(precedence[op.buffer] + 1) # will either be ExpressionNode or BianryExpressionNode
+            LHS_node = BinaryExpressionNode(LHS_node, RHS_node, op)
+
+        return LHS_node
 
     # ends program ends with an EOF
     def parse_program(self): 
@@ -220,11 +234,12 @@ class BinaryExpressionNode:
         OpsType.DIV : lambda builder, lhs, rhs: builder.div(lhs, rhs)
         }
 
-        rhs = self.RHS.codegen(mod, builder, symbol_table)
         lhs = self.LHS.codegen(mod, builder, symbol_table)
+        rhs = self.RHS.codegen(mod, builder, symbol_table)
 
         out =  op_map[self.op.buffer](builder, lhs, rhs)
         return out
+
 
 
 '''
