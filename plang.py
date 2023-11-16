@@ -34,9 +34,9 @@ def main():
 
   # for testing LLVM IR 
   if "-emit-llvm" in flags:
-      llvmfile = open(f"{sys.argv[1].replace('.c', '.ll')}", "w")
-      llvmfile.write(str(ir))
-      llvmfile.close()
+    llvmfile = open(f"{sys.argv[1].replace('.c', '.ll')}", "w")
+    llvmfile.write(str(ir))
+    llvmfile.close()
 
 if __name__ == "__main__":
   main()

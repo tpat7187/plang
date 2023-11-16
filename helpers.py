@@ -1,14 +1,15 @@
 import llvmlite.ir as ir
+from lexer import DType
 
 def get_llvmtype(typedef):
-    fn_types = { 
-        "int"    : ir.IntType(32),
-        "float"  : ir.FloatType(),
-        "void"   : ir.VoidType(),
-        "double" : ir.DoubleType()
-    }
+  fn_types = { 
+      DType.INT    : ir.IntType(32),
+      DType.FLOAT  : ir.FloatType(),
+      DType.VOID   : ir.VoidType(),
+      DType.DOUBLE : ir.DoubleType()
+  }
 
-    return fn_types[typedef]
+  return fn_types[typedef]
 
 
 

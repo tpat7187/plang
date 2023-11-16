@@ -3,6 +3,7 @@
 its a C compiler written in python. 
 
 ## TODO ## 
-- nested binary op expressions 
-- operator precedence 
+- support multiple dtypes in arithmetic
+- control flow (if, else)
+- control flow (for, while)
 - write tests kekw
